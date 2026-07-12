@@ -1,0 +1,35 @@
+This driver module enables screen mirroring.
+Unload usbdisp_fb.ko first when it is already loaded to avoid conflicts.
+
+1. Build:
+    Run make in the driver source root to build the kernel modules (*.ko).
+
+2. Load:
+    Load usbdisp_drm first, followed by usbdisp_usb. For example:
+      sudo insmod ./drm/usbdisp_drm.ko
+      sudo insmod ./drm/usbdisp_usb.ko
+
+    Restart the X server after loading the modules. For example:
+      sudo systemctl restart display-manager
+
+3. Verify the loaded modules:
+    Run lsmod | grep usbdisp to check the driver modules.
+
+4. Requirements:
+    - Linux kernel 4.19 or later;
+    - An X11 desktop environment;
+    - Source Output capability on the primary GPU;
+
+5. Troubleshooting:
+  5.1 Check whether the primary GPU supports Source Output:
+    (1). List providers: xrandr --listproviders
+    (2). Check whether the capabilities of "provider 0" include "Source Output".
+    (3). The primary GPU is usually "provider 0". Supported capability values include 0x9 and 0xf.
+
+  5.2 When Source Output is available, the display remains inactive, and "associated providers" is 0:
+    The driver uses the GPU rendering capability. Associate the device provider with the primary GPU provider:
+    (1). Command:
+        xrandr --setprovideroutputsource <prov-xid> <source-xid>
+
+        Example: xrandr --setprovideroutputsource 1 0
+        Here, 1 represents "provider 1", which is the device provider and depends on the system configuration. 0 represents "provider 0", which is the system GPU provider.
