@@ -42,7 +42,9 @@
 MODULE_IMPORT_NS("usbdisp_drm");
 #endif
 
-#define MOD_VER							"1.1.0"
+#ifndef MAGICBAY_VERSION
+#define MAGICBAY_VERSION					"unknown"
+#endif
 #define MAX_CUSTOM_MODE_CNT				16
 
 struct custom_mode_stru {
@@ -175,7 +177,7 @@ static int msdisp_usb_probe(struct usb_interface *interface,
 	int global_id;
 	struct kobject* obj;
 
-	dev_info(&udev->dev, "module version:%s\n", MOD_VER);
+	dev_info(&udev->dev, "module version:%s\n", MAGICBAY_VERSION);
 	if (!option_parserd) {
 		parser_custom_mode();
 		option_parserd = 1;
@@ -323,5 +325,6 @@ static struct usb_driver msdisp_usb_drv = {
 };
 module_usb_driver(msdisp_usb_drv);
 
-MODULE_VERSION(MOD_VER);
+MODULE_DESCRIPTION("MacroSilicon MS91xx USB display transport driver");
+MODULE_VERSION(MAGICBAY_VERSION);
 MODULE_LICENSE("GPL");

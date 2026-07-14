@@ -23,7 +23,9 @@
 #include "msdisp_plat_dev.h"
 
 
-#define MOD_VER							"1.0.1"
+#ifndef MAGICBAY_VERSION
+#define MAGICBAY_VERSION					"unknown"
+#endif
 
 static ushort msdisp_initial_device_count = 1;
 module_param_named(initial_device_count,
@@ -230,7 +232,7 @@ static int __init msdisp_init(void)
 
 	memset(&g_ctx, 0, sizeof(g_ctx));
 	g_ctx.root_dev = root_device_register("usbevdi");
-	dev_info(g_ctx.root_dev, "module version:%s\n", MOD_VER);
+	dev_info(g_ctx.root_dev, "module version:%s\n", MAGICBAY_VERSION);
 	g_ctx.usb_notifier.notifier_call = msdisp_platform_drv_usb;
 	mutex_init(&g_ctx.lock);
 	dev_set_drvdata(g_ctx.root_dev, &g_ctx);
@@ -263,5 +265,6 @@ static void __exit msdisp_exit(void)
 module_init(msdisp_init);
 module_exit(msdisp_exit);
 
-MODULE_VERSION(MOD_VER);
+MODULE_DESCRIPTION("MacroSilicon MS91xx DRM display driver");
+MODULE_VERSION(MAGICBAY_VERSION);
 MODULE_LICENSE("GPL");

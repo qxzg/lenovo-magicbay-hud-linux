@@ -35,7 +35,7 @@ static ssize_t msdisp_drm_frame_show(struct device* dev, struct device_attribute
 	strcat(buf, tmp);
 	sprintf(tmp, "no usb hal:%lld\n", stat->no_usb_hal);
 	strcat(buf, tmp);
-	sprintf(tmp, "no old state:%lld\n", stat->no_old_state);
+	sprintf(tmp, "no new state:%lld\n", stat->no_new_state);
 	strcat(buf, tmp);
 	sprintf(tmp, "no fb:%lld\n", stat->no_fb);
 	strcat(buf, tmp);
@@ -71,6 +71,12 @@ static ssize_t msdisp_drm_pipeline_info_show(struct device* dev, struct device_a
 	sprintf(tmp, "rate:%d\n", pipeline->drm_rate);
 	strcat(buf, tmp);
 	sprintf(tmp, "fb format:%x\n", pipeline->drm_fb_format);
+	strcat(buf, tmp);
+	sprintf(tmp, "vblank period ns:%lld\n",
+		(long long)ktime_to_ns(pipeline->vblank_period));
+	strcat(buf, tmp);
+	sprintf(tmp, "vblank count:%lld\n",
+		(long long)atomic64_read(&pipeline->vblank_count));
 	strcat(buf, tmp);
     
 	return strlen(buf);

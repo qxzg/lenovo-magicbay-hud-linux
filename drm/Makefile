@@ -10,7 +10,10 @@ endif
 
 
 ifneq ($(KERNELRELEASE),)
-ccflags-y := -isystem include/drm $(CFLAGS) $(EL8FLAG) $(RPIFLAG)
+ifeq ($(MAGICBAY_VERSION),)
+MAGICBAY_VERSION := $(shell sed -n 's/^PACKAGE_VERSION="\([^"]*\)"/\1/p' $(src)/../dkms.conf)
+endif
+ccflags-y := -isystem include/drm $(CFLAGS) $(EL8FLAG) $(RPIFLAG) -DMAGICBAY_VERSION=\"$(MAGICBAY_VERSION)\"
 ccflags-usbdisp_usb := -I$(HAL_PATH)
 usbdisp_drm-y := msdisp_plat_drv.o msdisp_plat_dev.o msdisp_drm_drv.o  msdisp_drm_modeset.o  msdisp_drm_gem.o  \
 	msdisp_drm_fb.o  msdisp_drm_encoder.o  msdisp_drm_connector.o msdisp_drm_interface.o msdisp_drm_sysfs.o msdisp_common_util.o
@@ -33,7 +36,7 @@ module:
 	$(MAKE) -C $(KDIR) M=$$PWD
 
 clean:
-	rm -rf *.mod *.mod.c *.o *.ko .tmp* .*.o.d .*.*.cmd Module.symvers modules.order
+	rm -rf *.mod *.mod.c *.o *.ko .module-common.o .tmp* .*.o.d .*.*.cmd Module.symvers modules.order
 
 install:
 	sudo cp usbdisp_drm.ko usbdisp_usb.ko /lib/modules/$(KVER)/kernel/drivers/usbdisp/

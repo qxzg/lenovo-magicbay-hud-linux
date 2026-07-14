@@ -13,7 +13,6 @@
  */
 
 #include <linux/version.h>
-#include <linux/jiffies.h>
 #include <linux/spinlock.h>
 #if KERNEL_VERSION(5, 16, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_ioctl.h>
@@ -36,7 +35,7 @@
 #include "msdisp_drm_drv.h"
 #include "msdisp_plat_drv.h"
 
-#define	MSDISP_DRM_VBLANK_TIMER_OUT_MS				20
+#define MSDISP_DRM_DEFAULT_REFRESH_HZ				60
 
 static ushort msdisp_drm_initial_pipeline_count = 1;
 module_param_named(initial_pipeline_count,
@@ -130,9 +129,9 @@ static struct drm_driver driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCH,
+	.major = DRM_ABI_MAJOR,
+	.minor = DRM_ABI_MINOR,
+	.patchlevel = DRM_ABI_PATCH,
 };
 
 static void msdisp_drm_handle_page_flip(struct msdisp_drm_pipeline* pipeline)
@@ -149,19 +148,38 @@ static void msdisp_drm_handle_page_flip(struct msdisp_drm_pipeline* pipeline)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static void msidsip_drm_timer_func(struct timer_list* t)
+static enum hrtimer_restart msdisp_drm_vblank_timer_func(struct hrtimer *timer)
 {
-	struct msdisp_drm_device *msdisp = timer_container_of(msdisp, t, vblank_timer);
-	struct drm_crtc* crtc;
-	int i;
+	struct msdisp_drm_pipeline *pipeline =
+		container_of(timer, struct msdisp_drm_pipeline, vblank_timer);
 
-	for (i = 0; i < msdisp->pipeline_cnt; i++) {
-		crtc = msdisp->pipeline[i].crtc;
-		drm_crtc_handle_vblank(crtc);
-		msdisp_drm_handle_page_flip(&msdisp->pipeline[i]);
-	}
+	drm_crtc_handle_vblank(pipeline->crtc);
+	atomic64_inc(&pipeline->vblank_count);
+	msdisp_drm_handle_page_flip(pipeline);
 
-	mod_timer(&msdisp->vblank_timer, jiffies + msecs_to_jiffies(MSDISP_DRM_VBLANK_TIMER_OUT_MS));
+	hrtimer_forward_now(timer, pipeline->vblank_period);
+	return HRTIMER_RESTART;
+}
+
+void msdisp_drm_vblank_start(struct msdisp_drm_pipeline *pipeline,
+			     unsigned int refresh_rate)
+{
+	u64 period_ns;
+
+	if (!refresh_rate)
+		refresh_rate = MSDISP_DRM_DEFAULT_REFRESH_HZ;
+
+	period_ns = NSEC_PER_SEC / refresh_rate;
+	hrtimer_cancel(&pipeline->vblank_timer);
+	pipeline->vblank_period = ns_to_ktime(period_ns);
+	hrtimer_start(&pipeline->vblank_timer, pipeline->vblank_period,
+		      HRTIMER_MODE_REL);
+}
+
+void msdisp_drm_vblank_stop(struct msdisp_drm_pipeline *pipeline)
+{
+	hrtimer_cancel(&pipeline->vblank_timer);
+	msdisp_drm_handle_page_flip(pipeline);
 }
 
 static int msdisp_drm_init(struct msdisp_drm_device *msdisp)
@@ -173,11 +191,19 @@ static int msdisp_drm_init(struct msdisp_drm_device *msdisp)
 	for (i = 0; i < msdisp->pipeline_cnt; i++) {
 		msdisp->pipeline[i].drm_status = MSDISP_DRM_STATUS_DISABLE;
 		mutex_init(&msdisp->pipeline[i].hal_lock);
+		msdisp->pipeline[i].vblank_period = ns_to_ktime(0);
+		atomic64_set(&msdisp->pipeline[i].vblank_count, 0);
+#if KERNEL_VERSION(6, 13, 0) <= LINUX_VERSION_CODE
+		hrtimer_setup(&msdisp->pipeline[i].vblank_timer,
+			      msdisp_drm_vblank_timer_func, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
+#else
+		hrtimer_init(&msdisp->pipeline[i].vblank_timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL);
+		msdisp->pipeline[i].vblank_timer.function =
+			msdisp_drm_vblank_timer_func;
+#endif
 	}
-
-	timer_setup(&msdisp->vblank_timer, msidsip_drm_timer_func, 0);
-	msdisp->vblank_timer.expires = (jiffies + msecs_to_jiffies(MSDISP_DRM_VBLANK_TIMER_OUT_MS));
-	add_timer(&msdisp->vblank_timer);
  
 	ret = msdisp_drm_modeset_init(dev);
 	if (ret) {
@@ -312,11 +338,13 @@ int msdisp_drm_device_remove(struct drm_device *drm)
 	int i;
 	struct msdisp_drm_device* msdisp_drm = to_msdisp_drm(drm);
 
+	drm_kms_helper_poll_fini(drm);
+
 	for (i = 0; i < msdisp_drm->pipeline_cnt; i++) {
+		hrtimer_cancel(&msdisp_drm->pipeline[i].vblank_timer);
 		(void)kfifo_free(&msdisp_drm->pipeline[i].fifo);
 	}
 
-	timer_delete(&msdisp_drm->vblank_timer);
 	msdisp_drm_sysfs_exit(msdisp_drm);
 	drm_dev_unplug(drm);
 

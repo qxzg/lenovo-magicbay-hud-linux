@@ -132,6 +132,8 @@ int msdisp_drm_crtc_atomic_check(struct drm_crtc *crtc,
 
 	bool has_primary = (crtc_state->plane_mask & drm_plane_mask(crtc->primary));
 
+	crtc_state->no_vblank = !crtc_state->active;
+
 	/* We always want to have an active plane with an active CRTC */
 	if (has_primary != crtc_state->enable)
 		return -EINVAL;
@@ -173,6 +175,11 @@ void msdisp_drm_crtc_atomic_enable(struct drm_crtc *crtc,
     width = mode->hdisplay;
     height = mode->vdisplay;
 	rate = drm_mode_vrefresh(mode);
+	if (!rate) {
+		rate = 60;
+		dev_warn(dev->dev,
+			 "mode refresh rate is zero; using 60 Hz vblank fallback\n");
+	}
 
 	pipeline->drm_width = width;
 	pipeline->drm_height = height;
@@ -181,6 +188,7 @@ void msdisp_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	pipeline->drm_status = MSDISP_DRM_STATUS_ENABLE;
 
     usb_hal->funcs->enable(usb_hal, width, height, rate, fb->format->format);
+	msdisp_drm_vblank_start(pipeline, rate);
     dev_info(dev->dev, "enable event:format=0x%x width=%d height=%d rate=%d\n", fb->format->format, width, height, rate);
 out:
 	mutex_unlock(&pipeline->hal_lock);
@@ -199,6 +207,8 @@ void msdisp_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct msdisp_usb_hal* usb_hal;
 
 	
+	pipeline = get_pipeline_by_crtc(crtc);
+	msdisp_drm_vblank_stop(pipeline);
 	drm_crtc_vblank_off(crtc);
 	if (crtc->state->event) {
 		unsigned long flags;
@@ -208,7 +218,6 @@ void msdisp_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
-	pipeline = get_pipeline_by_crtc(crtc);
 	pipeline->drm_status = MSDISP_DRM_STATUS_DISABLE;
     dev_info(dev->dev, "disable: pid=%d! comm=%s\n", task_pid_nr(current), current->comm);
 	mutex_lock(&pipeline->hal_lock);
@@ -353,8 +362,9 @@ static void msdisp_drm_plane_atomic_update(struct drm_plane *plane,
 		)
 {
 #if KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(atom_state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(atom_state, plane);
 #else
+	struct drm_plane_state *new_state = plane->state;
 #endif
 	struct drm_device* dev;
 	struct msdisp_drm_device *msdisp_drm;
@@ -376,12 +386,12 @@ static void msdisp_drm_plane_atomic_update(struct drm_plane *plane,
 	stat = &pipeline->frame_stat;
 	stat->total++;
 
-	if (!old_state) {
-		stat->no_old_state++;
+	if (!new_state) {
+		stat->no_new_state++;
 		return;
 	}
 
-	fb = old_state->fb;
+	fb = new_state->fb;
 	if (!fb) {
 		stat->no_fb++;
 		return;

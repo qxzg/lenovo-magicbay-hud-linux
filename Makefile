@@ -1,6 +1,8 @@
 export HAL_PATH := $(PWD)/usb_hal
 export DRM_PATH := $(PWD)/drm
 export USB_HAL := hal_adaptor.o usb_device.o usb_hal_interface.o usb_hal_sysfs.o usb_hal_thread.o
+MAGICBAY_VERSION := $(shell sed -n 's/^PACKAGE_VERSION="\([^"]*\)"/\1/p' $(CURDIR)/dkms.conf)
+export MAGICBAY_VERSION
 
 
 ifneq ($(KERNELRELEASE),)
@@ -31,7 +33,7 @@ clean: FORCE
 
 FORCE:
 
-.phony: default drm clean FORCE
+.PHONY: default drm clean FORCE
 
 endif
 

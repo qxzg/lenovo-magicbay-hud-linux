@@ -23,9 +23,9 @@ struct platform_device_info;
 #define DRIVER_DESC   "MacroSilicon Extensible Display Interface"
 #define DRIVER_DATE   "20230710"
 
-#define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
-#define DRIVER_PATCH 0
+#define DRM_ABI_MAJOR 1
+#define DRM_ABI_MINOR 0
+#define DRM_ABI_PATCH 0
 #define PLAT_DRIVER_NAME "msdisp_plat"
 
 #define MSDISP_DEVICE_COUNT_MAX                 3

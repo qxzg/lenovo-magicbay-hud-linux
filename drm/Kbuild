@@ -4,5 +4,8 @@ usbdisp_drm-y := msdisp_plat_drv.o msdisp_plat_dev.o msdisp_drm_drv.o  msdisp_dr
 usbdisp_usb-y := msdisp_usb_drv.o ms9132_hal.o $(usb_hal_o)
 obj-m := usbdisp_drm.o usbdisp_usb.o 
 
-ccflags-y := -isystem include/drm -I$(HAL_PATH) $(CFLAGS) $(EL8FLAG) $(RPIFLAG)
+ifeq ($(MAGICBAY_VERSION),)
+MAGICBAY_VERSION := $(shell sed -n 's/^PACKAGE_VERSION="\([^"]*\)"/\1/p' $(src)/../dkms.conf)
+endif
+ccflags-y := -isystem include/drm -I$(HAL_PATH) $(CFLAGS) $(EL8FLAG) $(RPIFLAG) -DMAGICBAY_VERSION=\"$(MAGICBAY_VERSION)\"
 CFLAGS_usbdisp_usb.o += -I$(HAL_PATH)

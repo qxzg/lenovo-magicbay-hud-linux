@@ -18,9 +18,10 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/atomic.h>
 #include <linux/kfifo.h>
 #include <linux/version.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
@@ -91,7 +92,7 @@ struct msdisp_drm_framebuffer {
 struct msdisp_drm_frame_stat {
 	u64 total;
 	u64 no_usb_hal;
-	u64 no_old_state;
+	u64 no_new_state;
 	u64 no_fb;
 	u64 vmap_fail;
 	u64 vmap_null;
@@ -110,6 +111,9 @@ struct msdisp_drm_pipeline {
 	struct drm_pending_vblank_event* event;
 	struct mutex hal_lock;
 	struct kfifo fifo;
+	struct hrtimer vblank_timer;
+	ktime_t vblank_period;
+	atomic64_t vblank_count;
 	struct msdisp_drm_frame_stat frame_stat;
 	volatile unsigned int dump_fb_flag;
 	int reg_flag;
@@ -123,7 +127,6 @@ struct msdisp_drm_pipeline {
 
 struct msdisp_drm_device {
 	struct drm_device drm; //must be first field, so, drmm_add_final_kfree is not needed
-	struct timer_list vblank_timer;
 	struct device *parent;
 	int pipeline_cnt;
 	struct msdisp_drm_pipeline pipeline[MSDISP_DRM_MAX_PIPELINE_CNT];
@@ -172,6 +175,9 @@ struct msdisp_drm_connector *msdisp_drm_connector_init(struct drm_device *dev, s
 struct drm_device *msdisp_drm_device_create(struct device *parent);
 int msdisp_drm_device_remove(struct drm_device *dev);
 int msdisp_drm_get_pipeline_init_count(void);
+void msdisp_drm_vblank_start(struct msdisp_drm_pipeline *pipeline,
+			     unsigned int refresh_rate);
+void msdisp_drm_vblank_stop(struct msdisp_drm_pipeline *pipeline);
 
 
 #endif
