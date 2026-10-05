@@ -167,11 +167,6 @@ void msdisp_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	dev_info(dev->dev, "fb size:width:%d height:%d mode size:width:%d height:%d\n", fb->width, fb->height, mode->hdisplay, mode->vdisplay);
 	pipeline = get_pipeline_by_crtc(crtc);
 	mutex_lock(&pipeline->hal_lock);
-	usb_hal = pipeline->usb_hal;
-	if (!usb_hal) {
-		dev_info(dev->dev, "usb hal is null\n");
-		goto out;
-	}
 
     width = mode->hdisplay;
     height = mode->vdisplay;
@@ -188,8 +183,19 @@ void msdisp_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	pipeline->drm_fb_format = fb->format->format;
 	pipeline->drm_status = MSDISP_DRM_STATUS_ENABLE;
 
-    usb_hal->funcs->enable(usb_hal, width, height, rate, fb->format->format);
+	/*
+	 * Run vblank even without a USB HAL so page flips keep completing;
+	 * msdisp_drm_register_usb_hal() resumes the stored mode on attach.
+	 */
 	msdisp_drm_vblank_start(pipeline, rate);
+
+	usb_hal = pipeline->usb_hal;
+	if (!usb_hal) {
+		dev_info(dev->dev, "usb hal is null\n");
+		goto out;
+	}
+
+    usb_hal->funcs->enable(usb_hal, width, height, rate, fb->format->format);
     dev_info(dev->dev, "enable event:format=0x%x width=%d height=%d rate=%d\n", fb->format->format, width, height, rate);
 out:
 	mutex_unlock(&pipeline->hal_lock);

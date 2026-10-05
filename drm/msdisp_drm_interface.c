@@ -187,6 +187,7 @@ int msdisp_drm_register_usb_hal(struct drm_device* drm, int pipeline_index, stru
         ret = usb_hal->funcs->enable(usb_hal, pipeline->drm_width, pipeline->drm_height, pipeline->drm_rate, pipeline->drm_fb_format);
     }
     pipeline->reg_flag = 1;
+    drm_helper_hpd_irq_event(drm);
     return 0;
 }
 EXPORT_SYMBOL(msdisp_drm_register_usb_hal);
@@ -208,6 +209,7 @@ int msdisp_drm_unregister_usb_hal(struct drm_device* drm, int pipeline_index)
     pipeline->usb_hal = NULL;
     pipeline->reg_flag = 0;
     mutex_unlock(&pipeline->hal_lock);
+    drm_helper_hpd_irq_event(drm);
     return 0;
 }
 EXPORT_SYMBOL(msdisp_drm_unregister_usb_hal);
