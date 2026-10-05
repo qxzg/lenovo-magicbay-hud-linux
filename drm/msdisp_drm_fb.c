@@ -28,6 +28,7 @@
 #include <drm/drm_damage_helper.h>
 #endif
 
+#include "msdisp_drm_compat.h"
 #include "msdisp_drm_drv.h"
 
 

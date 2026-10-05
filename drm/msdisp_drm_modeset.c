@@ -36,6 +36,7 @@
 #include <linux/dma-buf.h>
 
 
+#include "msdisp_drm_compat.h"
 #include "msdisp_drm_drv.h"
 #include "msdisp_drm_event.h"
 #include "msdisp_common_util.h"
