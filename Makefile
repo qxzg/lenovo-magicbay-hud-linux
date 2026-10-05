@@ -1,5 +1,5 @@
-export HAL_PATH := $(PWD)/usb_hal
-export DRM_PATH := $(PWD)/drm
+export HAL_PATH := $(CURDIR)/usb_hal
+export DRM_PATH := $(CURDIR)/drm
 export USB_HAL := hal_adaptor.o usb_device.o usb_hal_interface.o usb_hal_sysfs.o usb_hal_thread.o
 MAGICBAY_VERSION := $(shell sed -n 's/^PACKAGE_VERSION="\([^"]*\)"/\1/p' $(CURDIR)/dkms.conf)
 export MAGICBAY_VERSION
