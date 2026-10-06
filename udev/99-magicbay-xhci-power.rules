@@ -1,0 +1,2 @@
+# Keep the Lenovo MagicBay Type-C xHCI awake so an attached HUD can enumerate.
+SUBSYSTEM=="pci", KERNEL=="0000:00:0d.0", ATTR{vendor}=="0x8086", ATTR{device}=="0xe431", ATTR{subsystem_vendor}=="0x17aa", ATTR{subsystem_device}=="0x3852", TEST=="power/control", ATTR{power/control}="on"
